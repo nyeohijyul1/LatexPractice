@@ -35,6 +35,7 @@
 }
 .margin20 {
   margin: 20px;
+  overflow: auto;
 }
 .none {
   display: none;
