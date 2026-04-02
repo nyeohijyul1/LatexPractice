@@ -1,0 +1,82 @@
+@media (orientation: landscape) {
+  #popupcontainer {
+    position: fixed;
+    top: 0;
+    left: 30dvw;
+    right: 0;
+    bottom: 0;
+    background-color: rgb(182, 174, 222, 0.5);
+    margin: 20px;
+  }
+}
+@media (orientation: portrait) {
+  #popupcontainer {
+    position: fixed;
+    top: 30dvh;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(182, 174, 222, 0.5);
+    margin: 20px;
+  }
+}
+#container {
+  padding: 20px;
+}
+#content {
+  padding: 20px;
+  box-sizing: border-box;
+}
+.content {
+  background-color: #fff;
+  padding: 20px;
+  margin: 20px 0;
+  overflow: auto;
+}
+.margin20 {
+  margin: 20px;
+}
+.none {
+  display: none;
+}
+.emphasize {
+  color: #1428a0;
+}
+.emphasize mjx-container,
+li > mjx-container {
+  color: #1428a0;
+}
+span {
+  color: #b6aede;
+}
+mjx-container {
+  color: #b6aede;
+}
+table,
+tr,
+td {
+  border-collapse: collapse;
+  border: 1px solid #1428a0;
+}
+input[type="checkbox"] {
+  width: 100%;
+  height: 100%;
+}
+h1 {
+  color: #1428a0;
+}
+button {
+  background-color: #7964de;
+  border: none;
+  color: #fff;
+  margin-right: 10px;
+}
+/* div {
+  margin: 20px;
+} */
+table button {
+  margin: 0;
+}
+table span {
+  color: black;
+}

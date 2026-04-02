@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="icon.ico" />
+    <link rel="stylesheet" href="style.css" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="container">
+      <div id="logindiv">
+        이메일
+        <input type="email" id="email" />
+        비밀번호
+        <input type="password" id="password" />
+        <button id="loginbtn">login</button>
+      </div>
+      <div id="contentdiv" class="none">
+        <a href="./m">math</a>
+        <a href="./p">physics</a>
+        <button id="logoutbtn">logout</button>
+      </div>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+      // import {
+      //   getDatabase,
+      //   ref,
+      //   set,
+      //   get,
+      //   push,
+      // } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+      import {
+        getAuth,
+        signInWithEmailAndPassword,
+        signOut,
+        onAuthStateChanged,
+      } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyAUkJIqmar5DIhIezrx0tD3v27oXcEp-Ho",
+        authDomain: "read-75b26.firebaseapp.com",
+        databaseURL:
+          "https://read-75b26-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "read-75b26",
+        storageBucket: "read-75b26.firebasestorage.app",
+        messagingSenderId: "441487145421",
+        appId: "1:441487145421:web:cb06f12157b94db9ff2c84",
+        measurementId: "G-QH5YZEE8F8",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      // const db = getDatabase(app);
+      const auth = getAuth(app);
+
+      //   sessionStorage.setItem("uid", "");
+
+      async function login() {
+        try {
+          await signInWithEmailAndPassword(
+            auth,
+            document.querySelector("#email").value,
+            document.querySelector("#password").value,
+          );
+          //   sessionStorage.setItem("uid", getAuth().currentUser.uid);
+          document.querySelector("#logindiv").classList.add("none");
+          document.querySelector("#contentdiv").classList.remove("none");
+          document.querySelector("#email").value = "";
+          document.querySelector("#password").value = "";
+          //   console.log(sessionStorage.getItem("uid"), "님 환영");
+        } catch (e) {
+          alert("로그인 실패");
+        }
+      }
+
+      async function logout() {
+        try {
+          await signOut(auth);
+          document.querySelector("#contentdiv").classList.add("none");
+          document.querySelector("#logindiv").classList.remove("none");
+          //   sessionStorage.setItem("uid", "");
+        } catch (e) {
+          alert("오류: 잠시 뒤 다시 시도해주세요.");
+        }
+      }
+
+      document.querySelector("#loginbtn").addEventListener("click", login);
+      document.querySelector("#password").addEventListener("keydown", (e) => {
+        if (e.key == "Enter") {
+          login();
+        }
+      });
+      document.querySelector("#logoutbtn").addEventListener("click", logout);
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          document.querySelector("#logindiv").classList.add("none");
+          document.querySelector("#contentdiv").classList.remove("none");
+          const uid = user.uid;
+          console.log("현재 로그인한 사용자 UID:", uid);
+        } else {
+          console.log("로그인된 사용자가 없습니다.");
+        }
+      });
+    </script>
+  </body>
+</html>
