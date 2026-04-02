@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="../icon.ico" />
+    <link rel="stylesheet" href="../style.css" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="content" class="none">
+      <button id="addbtn">새 항목 추가</button>
+      <button id="chngbtn">전체 보기</button>
+
+      <ul id="list"></ul>
+      <ul id="testul">
+        <li id="testli" class="none">
+          여기에 강조된 문구가 표시됩니다. 클릭하면 세부 내용으로 이동합니다.
+        </li>
+      </ul>
+      <div id="popupcontainer" class="none"></div>
+    </div>
+    <div id="alert">로그인하고오쇼</div>
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
+    </script>
+    <script
+      type="text/javascript"
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+    ></script>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+
+      import {
+        getDatabase,
+        ref,
+        set,
+        get,
+      } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyAUkJIqmar5DIhIezrx0tD3v27oXcEp-Ho",
+        authDomain: "read-75b26.firebaseapp.com",
+        databaseURL:
+          "https://read-75b26-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "read-75b26",
+        storageBucket: "read-75b26.firebasestorage.app",
+        messagingSenderId: "441487145421",
+        appId: "1:441487145421:web:cb06f12157b94db9ff2c84",
+        measurementId: "G-QH5YZEE8F8",
+      };
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      import {
+        getAuth,
+        onAuthStateChanged,
+      } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+
+      const auth = getAuth(app);
+      let currentUser = null;
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          document.querySelector("#alert").classList.add("none");
+          document.querySelector("#content").classList.remove("none");
+
+          currentUser = user;
+
+          loadData();
+        }
+      });
+
+      let topic = "em";
+
+      async function loadData() {
+        let uid = currentUser.uid;
+
+        const dataset = await get(ref(db, `${uid}/study/physics/${topic}`));
+        if (dataset.val()) {
+          document.querySelector("#testli").classList.add("none");
+          if (list.children) {
+            [...list.children].forEach((li) => {
+              li.remove();
+            });
+          }
+          switch (topic) {
+            case "list":
+              for (const key in dataset.val()) {
+                const newLI = document.createElement("li");
+                newLI.textContent = key;
+                list.appendChild(newLI);
+              }
+              break;
+            case "em":
+              for (const title in dataset.val()) {
+                for (const key in dataset.val()[title]) {
+                  const newLI = document.createElement("li");
+                  let content = dataset.val()[title][key]["text"];
+                  if (content.includes("$$")) {
+                    let tmp = content.split("$$")[1];
+                    content = "$" + tmp + "$";
+                  }
+                  newLI.textContent = content;
+                  newLI.setAttribute("title", title);
+                  list.appendChild(newLI);
+                }
+              }
+            default:
+              break;
+          }
+        } else {
+          document.querySelector("#testli").classList.remove("none");
+        }
+        MathJax.typeset();
+      }
+
+      async function saveItem() {
+        let uid = currentUser.uid;
+
+        const editDataRef =
+          document.querySelector("#popupcontainer").firstChild;
+
+        let title = editDataRef.firstChild.value;
+        if (!title) {
+          alert("제목을 입력해 주세요.");
+          return;
+        }
+
+        let tableInputTRset = editDataRef.lastChild.children[1].children;
+        let i = 0;
+        let listobj = {};
+        let emobj = {};
+        for (const tr of tableInputTRset) {
+          let arr = new Array(4);
+          arr[0] = tr.children[0].querySelector("input").value;
+          if (!arr[0]) {
+            break;
+          }
+          let j = 1;
+          for (const td of [...tr.children].slice(1, 4)) {
+            arr[j] = td.querySelector("input").checked;
+            j++;
+          }
+
+          if (arr[1] == true) {
+            arr[0] = "$$" + arr[0] + "$$";
+          }
+          let tmp = { text: arr[0], em: arr[2], br: arr[3] };
+          if (arr[2] == true) {
+            emobj[i] = tmp;
+          }
+          listobj[i] = tmp;
+          i++;
+        }
+        if (await get(ref(db, `${uid}/study/physics/em/${title}`))) {
+          await set(ref(db, `${uid}/study/physics/em/${title}`), null);
+        }
+        await set(ref(db, `${uid}/study/physics/em/${title}`), emobj);
+        if (await get(ref(db, `${uid}/study/physics/list/${title}`))) {
+          await set(ref(db, `${uid}/study/physics/list/${title}`), null);
+        }
+        await set(ref(db, `${uid}/study/physics/list/${title}`), listobj);
+        alert("저장 성공");
+        closepopup();
+        loadData();
+      }
+
+      async function viewItem(title) {
+        let uid = currentUser.uid;
+
+        const dataset = await get(
+          ref(db, `${uid}/study/physics/list/${title}`),
+        );
+        openpopup();
+
+        const div = document.createElement("div");
+
+        const dataTitle = document.createElement("h1");
+        dataTitle.textContent = title;
+
+        const editbtn = document.createElement("button");
+        editbtn.addEventListener("click", () => {
+          openpopup();
+          editItem(title);
+        });
+        editbtn.textContent = "편집";
+
+        const closebtn = document.createElement("button");
+        closebtn.addEventListener("click", closepopup);
+        closebtn.textContent = "닫기";
+
+        div.appendChild(dataTitle);
+        div.appendChild(editbtn);
+        div.appendChild(closebtn);
+
+        const contentdiv = document.createElement("div");
+        contentdiv.classList.add("content");
+
+        for (const contentTitle in dataset.val()) {
+          const content = dataset.val()[contentTitle];
+          const newspan = document.createElement("span");
+          newspan.textContent = content.text + " ";
+          if (content.em == true) {
+            newspan.classList.add("emphasize");
+          }
+          contentdiv.appendChild(newspan);
+          if (content.br == true) {
+            const br = document.createElement("br");
+            contentdiv.append(br);
+          }
+        }
+        div.appendChild(contentdiv);
+        div.classList.add("margin20");
+        popup.appendChild(div);
+        MathJax.typeset();
+      }
+
+      async function editItem(title) {
+        let uid = currentUser.uid;
+        const dataset = await get(
+          ref(db, `${uid}/study/physics/list/${title}`),
+        );
+
+        const div = document.createElement("div");
+
+        const titleData = document.createElement("input");
+        titleData.setAttribute("type", "hidden");
+        titleData.classList.add("none");
+        titleData.value = title;
+
+        const itemTitle = document.createElement("h1");
+        itemTitle.textContent = title;
+
+        const cancelbtn = document.createElement("button");
+        cancelbtn.textContent = "작성 취소";
+        cancelbtn.addEventListener("click", closepopup);
+
+        const savebtn = document.createElement("button");
+        savebtn.textContent = "저장";
+        savebtn.addEventListener("click", saveItem);
+
+        const itemTable = document.createElement("table");
+        itemTable.setAttribute("id", "table");
+        itemTable.appendChild(createInitialTr());
+        const tb = document.createElement("tbody");
+
+        for (const contentTitle in dataset.val()) {
+          const content = dataset.val()[contentTitle];
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          const newbtn = document.createElement("button");
+          newbtn.textContent = "앞행 추가";
+          newbtn.addEventListener("click", (event) => {
+            event.target.parentNode.parentNode.parentNode.insertBefore(
+              createTrSet(),
+              event.target.parentNode.parentNode,
+            );
+          });
+          const input = document.createElement("input");
+          input.setAttribute("type", "text");
+          input.value = content.text;
+          const swapbtn = document.createElement("button");
+          swapbtn.textContent = "위로 이동";
+          swapbtn.addEventListener("click", (event) => {
+            event.target.parentNode.parentNode.parentNode.insertBefore(
+              event.target.parentNode.parentNode,
+              event.target.parentNode.parentNode.previousElementSibling,
+            );
+          });
+          const delbtn = document.createElement("button");
+          delbtn.textContent = "행 삭제";
+          delbtn.addEventListener("click", (event) => {
+            event.target.parentNode.parentNode.remove();
+          });
+          td.appendChild(newbtn);
+          td.appendChild(input);
+          td.appendChild(swapbtn);
+          td.appendChild(delbtn);
+          tr.appendChild(td);
+          for (let j = 0; j < 3; j++) {
+            const td = document.createElement("td");
+            const input = document.createElement("input");
+            input.setAttribute("type", "checkbox");
+            switch (j) {
+              case 1:
+                input.checked = content.em;
+                break;
+              case 2:
+                input.checked = content.br;
+                break;
+              default:
+                break;
+            }
+            td.appendChild(input);
+            tr.appendChild(td);
+          }
+          tb.appendChild(tr);
+        }
+
+        itemTable.appendChild(tb);
+
+        div.appendChild(titleData);
+        div.appendChild(itemTitle);
+        div.appendChild(cancelbtn);
+        div.appendChild(savebtn);
+        div.appendChild(itemTable);
+        div.classList.add("margin20");
+        popup.appendChild(div);
+      }
+
+      function openpopup() {
+        closepopup();
+        popup.classList.remove("none");
+      }
+      function closepopup() {
+        popup.classList.add("none");
+        popup.children[0]?.remove();
+        addbtn.textContent = "새 항목 추가";
+        addbtn.removeAttribute("disabled");
+      }
+
+      function editNewItem() {
+        const div = document.createElement("div");
+
+        const itemTitle = document.createElement("input");
+        itemTitle.setAttribute("id", "title");
+        itemTitle.setAttribute("type", "text");
+        itemTitle.setAttribute("placeholder", "제목 입력");
+
+        const cancelbtn = document.createElement("button");
+        cancelbtn.textContent = "작성 취소";
+        cancelbtn.addEventListener("click", () => {
+          closepopup();
+        });
+
+        const savebtn = document.createElement("button");
+        savebtn.textContent = "저장";
+        savebtn.addEventListener("click", () => {
+          saveItem();
+        });
+
+        const itemTable = document.createElement("table");
+        itemTable.setAttribute("id", "table");
+        itemTable.appendChild(createInitialTr());
+        const tb = document.createElement("tbody");
+        tb.appendChild(createTrSet());
+        itemTable.appendChild(tb);
+
+        div.appendChild(itemTitle);
+        div.appendChild(cancelbtn);
+        div.appendChild(savebtn);
+        div.appendChild(itemTable);
+        div.classList.add("margin20");
+        popup.appendChild(div);
+      }
+      function createInitialTr() {
+        const tr = document.createElement("tr");
+        for (let j = 0; j < 4; j++) {
+          const td = document.createElement("td");
+          switch (j) {
+            case 0:
+              const newbtn = document.createElement("button");
+              newbtn.textContent = "행 추가";
+              newbtn.addEventListener("click", (event) => {
+                event.target.parentNode.parentNode.parentNode.children[1].appendChild(
+                  createTrSet(),
+                );
+              });
+              td.appendChild(newbtn);
+
+              const newspan = document.createElement("span");
+              newspan.textContent = "내용";
+              td.appendChild(newspan);
+
+              break;
+            case 1:
+              td.textContent = "수식";
+              break;
+            case 2:
+              td.textContent = "강조";
+              break;
+            case 3:
+              td.textContent = "줄바꿈";
+              break;
+            default:
+              break;
+          }
+          tr.appendChild(td);
+        }
+        return tr;
+      }
+      function createTrSet() {
+        const tr = document.createElement("tr");
+
+        const td = document.createElement("td");
+        const newbtn = document.createElement("button");
+        newbtn.textContent = "앞행 추가";
+        newbtn.addEventListener("click", (event) => {
+          event.target.parentNode.parentNode.parentNode.insertBefore(
+            createTrSet(),
+            event.target.parentNode.parentNode,
+          );
+        });
+        const input = document.createElement("input");
+
+        input.setAttribute("type", "text");
+        const swapbtn = document.createElement("button");
+        swapbtn.textContent = "위로 이동";
+        swapbtn.addEventListener("click", (event) => {
+          event.target.parentNode.parentNode.parentNode.insertBefore(
+            event.target.parentNode.parentNode,
+            event.target.parentNode.parentNode.previousElementSibling,
+          );
+        });
+        const delbtn = document.createElement("button");
+        delbtn.textContent = "행 삭제";
+        delbtn.addEventListener("click", (event) => {
+          event.target.parentNode.parentNode.remove();
+        });
+        td.appendChild(newbtn);
+        td.appendChild(input);
+        td.appendChild(swapbtn);
+        td.appendChild(delbtn);
+        tr.appendChild(td);
+        for (let j = 1; j < 4; j++) {
+          const td = document.createElement("td");
+          const input = document.createElement("input");
+
+          input.setAttribute("type", "checkbox");
+          td.appendChild(input);
+          tr.appendChild(td);
+        }
+        return tr;
+      }
+
+      const list = document.querySelector("#list");
+      list.addEventListener("click", (event) => {
+        switch (topic) {
+          case "list":
+            viewItem(event.target.innerText);
+            break;
+          case "em":
+            if (event.target.tagName == "LI") {
+              viewItem(event.target.title);
+            } else {
+              viewItem(event.target.closest("li").title);
+            }
+            break;
+          default:
+            break;
+        }
+      });
+
+      const addbtn = document.querySelector("#addbtn");
+      const chngbtn = document.querySelector("#chngbtn");
+      const popup = document.querySelector("#popupcontainer");
+      addbtn.addEventListener("click", () => {
+        addbtn.textContent = "새 항목 추가중...";
+        addbtn.setAttribute("disabled", true);
+        openpopup();
+        editNewItem();
+      });
+      chngbtn.addEventListener("click", () => {
+        switch (topic) {
+          case "list":
+            topic = "em";
+            chngbtn.textContent = "전체 보기";
+            loadData();
+            break;
+          case "em":
+            topic = "list";
+            chngbtn.textContent = "강조 보기";
+            loadData();
+            break;
+          default:
+            break;
+        }
+      });
+    </script>
+  </body>
+</html>
