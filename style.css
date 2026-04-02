@@ -7,6 +7,7 @@
     bottom: 0;
     background-color: rgb(182, 174, 222, 0.5);
     margin: 20px;
+    overflow: auto;
   }
 }
 @media (orientation: portrait) {
@@ -18,6 +19,7 @@
     bottom: 0;
     background-color: rgba(182, 174, 222, 0.5);
     margin: 20px;
+    overflow: auto;
   }
 }
 #container {
@@ -31,11 +33,11 @@
   background-color: #fff;
   padding: 20px;
   margin: 20px 0;
-  overflow: auto;
+  /* overflow: auto; */
 }
 .margin20 {
   margin: 20px;
-  overflow: auto;
+  /* overflow: auto; */
 }
 .none {
   display: none;
