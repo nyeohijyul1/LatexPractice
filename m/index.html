@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="../icon.ico" />
+    <link rel="stylesheet" href="../style.css" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="content" class="none">
+      <button id="addbtn">새 항목 추가</button>
+      <button id="chngbtn">전체 보기</button>
+
+      <ul id="list"></ul>
+      <ul id="testul">
+        <li id="testli" class="none">
+          여기에 강조된 문구가 표시됩니다. 클릭하면 세부 내용으로 이동합니다.
+        </li>
+      </ul>
+      <div id="popupcontainer" class="none"></div>
+    </div>
+    <div id="alert">로그인하고오쇼</div>
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
+    </script>
+    <script
+      type="text/javascript"
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+    ></script>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+
+      import {
+        getDatabase,
+        ref,
+        set,
+        get,
+        // push,
+      } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyAUkJIqmar5DIhIezrx0tD3v27oXcEp-Ho",
+        authDomain: "read-75b26.firebaseapp.com",
+        databaseURL:
+          "https://read-75b26-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "read-75b26",
+        storageBucket: "read-75b26.firebasestorage.app",
+        messagingSenderId: "441487145421",
+        appId: "1:441487145421:web:cb06f12157b94db9ff2c84",
+        measurementId: "G-QH5YZEE8F8",
+      };
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      //   if (sessionStorage.getItem("uid")) {
+      //     document.querySelector("#alert").classList.add("none");
+      //     document.querySelector("#content").classList.remove("none");
+      //     document.querySelector("#content").textContent =
+      //       sessionStorage.getItem("uid");
+      //   }
+      import {
+        getAuth,
+        onAuthStateChanged,
+      } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+
+      const auth = getAuth(app);
+      let currentUser = null;
+
+      // 페이지가 이동되어도 이 함수가 자동으로 로그인 상태를 감지합니다.
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          // 로그인 상태임
+          document.querySelector("#alert").classList.add("none");
+          document.querySelector("#content").classList.remove("none");
+
+          // const uid = user.uid;
+          // console.log("현재 로그인한 사용자 UID:", uid);
+
+          currentUser = user;
+
+          loadData();
+          // 여기서 UID를 기반으로 필요한 데이터를 불러오면 됩니다.
+        } else {
+          // 로그아웃 상태임 (로그인 페이지로 리다이렉트 등 처리)
+          // console.log("로그인된 사용자가 없습니다.");
+        }
+      });
+
+      // async function getUID() {
+      //   const currentAuth = await getAuth();
+      //   const uid = currentAuth.currentUser.uid;
+      //   return uid;
+      // }
+      let topic = "em";
+
+      async function loadData() {
+        // const uid = getUID();
+
+        let uid = currentUser.uid;
+
+        const dataset = await get(ref(db, `${uid}/study/math/${topic}`));
+        if (dataset.val()) {
+          document.querySelector("#testli").classList.add("none");
+          // console.log(dataset.val());
+          if (list.children) {
+            [...list.children].forEach((li) => {
+              li.remove();
+            });
+          }
+          switch (topic) {
+            case "list":
+              for (const key in dataset.val()) {
+                const newLI = document.createElement("li");
+                newLI.textContent = key;
+                list.appendChild(newLI);
+              }
+              break;
+            case "em":
+              for (const title in dataset.val()) {
+                for (const key in dataset.val()[title]) {
+                  const newLI = document.createElement("li");
+                  // const newspan = document.createElement("span");
+                  // newspan.textContent = dataset.val()[title][key]["text"];
+                  let content = dataset.val()[title][key]["text"];
+                  if (content.includes("$$")) {
+                    let tmp = content.split("$$")[1];
+                    content = "$" + tmp + "$";
+                  }
+                  newLI.textContent = content;
+                  // console.log(title);
+                  newLI.setAttribute("title", title);
+                  // newLI.appendChild(newspan);
+                  list.appendChild(newLI);
+                }
+              }
+            default:
+              break;
+          }
+        } else {
+          document.querySelector("#testli").classList.remove("none");
+        }
+        MathJax.typeset();
+        // .val()로 object 가져오기
+      }
+
+      async function saveItem() {
+        // const uid = getUID();
+
+        // console.log(currentUser.uid);
+        let uid = currentUser.uid;
+        // console.log(uid);
+
+        const editDataRef =
+          document.querySelector("#popupcontainer").firstChild;
+        // 1. title
+        let title = editDataRef.firstChild.value;
+        if (!title) {
+          alert("제목을 입력해 주세요.");
+          return;
+        }
+        // 2. tbody
+        let tableInputTRset = editDataRef.lastChild.children[1].children;
+        let i = 0;
+        let listobj = {};
+        let emobj = {};
+        for (const tr of tableInputTRset) {
+          let arr = new Array(4);
+          arr[0] = tr.children[0].querySelector("input").value;
+          if (!arr[0]) {
+            break;
+          }
+          let j = 1;
+          for (const td of [...tr.children].slice(1, 4)) {
+            arr[j] = td.querySelector("input").checked;
+            j++;
+          }
+          // console.log(arr);
+          // if (await get(ref(db, `${uid}/study/math/em/${title}/${i}`))) {
+          //   await set(ref(db, `${uid}/study/math/em/${title}/${i}`), null);
+          // }
+          if (arr[1] == true) {
+            arr[0] = "$$" + arr[0] + "$$";
+          }
+          let tmp = { text: arr[0], em: arr[2], br: arr[3] };
+          if (arr[2] == true) {
+            emobj[i] = tmp;
+          }
+          listobj[i] = tmp;
+          // if (arr[2] == true) {
+          //   await set(ref(db, `${uid}/study/math/em/${title}/${i}`), tmp);
+          // }
+          // await set(ref(db, `${uid}/study/math/list/${title}/${i}`), tmp);
+          i++;
+        }
+        if (await get(ref(db, `${uid}/study/math/em/${title}`))) {
+          await set(ref(db, `${uid}/study/math/em/${title}`), null);
+        }
+        await set(ref(db, `${uid}/study/math/em/${title}`), emobj);
+        if (await get(ref(db, `${uid}/study/math/list/${title}`))) {
+          await set(ref(db, `${uid}/study/math/list/${title}`), null);
+        }
+        await set(ref(db, `${uid}/study/math/list/${title}`), listobj);
+        alert("저장 성공");
+        closepopup();
+        loadData();
+        // console.log("good");
+      }
+
+      async function viewItem(title) {
+        let uid = currentUser.uid;
+
+        const dataset = await get(ref(db, `${uid}/study/math/list/${title}`));
+        openpopup();
+
+        const div = document.createElement("div");
+
+        const dataTitle = document.createElement("h1");
+        dataTitle.textContent = title;
+
+        const editbtn = document.createElement("button");
+        editbtn.addEventListener("click", () => {
+          openpopup();
+          editItem(title);
+        });
+        editbtn.textContent = "편집";
+
+        const closebtn = document.createElement("button");
+        closebtn.addEventListener("click", closepopup);
+        closebtn.textContent = "닫기";
+
+        div.appendChild(dataTitle);
+        div.appendChild(editbtn);
+        div.appendChild(closebtn);
+
+        const contentdiv = document.createElement("div");
+        contentdiv.classList.add("content");
+
+        for (const contentTitle in dataset.val()) {
+          const content = dataset.val()[contentTitle];
+          const newspan = document.createElement("span");
+          newspan.textContent = content.text + " ";
+          if (content.em == true) {
+            newspan.classList.add("emphasize");
+          }
+          contentdiv.appendChild(newspan);
+          if (content.br == true) {
+            const br = document.createElement("br");
+            contentdiv.append(br);
+          }
+        }
+        div.appendChild(contentdiv);
+        div.classList.add("margin20");
+        popup.appendChild(div);
+        MathJax.typeset();
+      }
+
+      async function editItem(title) {
+        // const uid = getUID();
+        let uid = currentUser.uid;
+        const dataset = await get(ref(db, `${uid}/study/math/list/${title}`));
+
+        const div = document.createElement("div");
+
+        const titleData = document.createElement("input");
+        titleData.setAttribute("type", "hidden");
+        titleData.classList.add("none");
+        // titleData.setAttribute("value", title);
+        titleData.value = title;
+
+        const itemTitle = document.createElement("h1");
+        itemTitle.textContent = title;
+
+        const cancelbtn = document.createElement("button");
+        cancelbtn.textContent = "작성 취소";
+        cancelbtn.addEventListener("click", closepopup);
+
+        const savebtn = document.createElement("button");
+        savebtn.textContent = "저장";
+        savebtn.addEventListener("click", saveItem);
+
+        const itemTable = document.createElement("table");
+        itemTable.setAttribute("id", "table");
+        itemTable.appendChild(createInitialTr());
+        const tb = document.createElement("tbody");
+        // tb.appendChild(createTrSet());
+
+        // =========================
+        for (const contentTitle in dataset.val()) {
+          const content = dataset.val()[contentTitle];
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          const newbtn = document.createElement("button");
+          newbtn.textContent = "앞행 추가";
+          newbtn.addEventListener("click", (event) => {
+            event.target.parentNode.parentNode.parentNode.insertBefore(
+              createTrSet(),
+              event.target.parentNode.parentNode,
+            );
+          });
+          const input = document.createElement("input");
+          input.setAttribute("type", "text");
+          input.value = content.text;
+          const swapbtn = document.createElement("button");
+          swapbtn.textContent = "위로 이동";
+          swapbtn.addEventListener("click", (event) => {
+            event.target.parentNode.parentNode.parentNode.insertBefore(
+              event.target.parentNode.parentNode,
+              event.target.parentNode.parentNode.previousElementSibling,
+            );
+          });
+          const delbtn = document.createElement("button");
+          delbtn.textContent = "행 삭제";
+          delbtn.addEventListener("click", (event) => {
+            event.target.parentNode.parentNode.remove();
+          });
+          td.appendChild(newbtn);
+          td.appendChild(input);
+          td.appendChild(swapbtn);
+          td.appendChild(delbtn);
+          tr.appendChild(td);
+          for (let j = 0; j < 3; j++) {
+            const td = document.createElement("td");
+            const input = document.createElement("input");
+            input.setAttribute("type", "checkbox");
+            switch (j) {
+              case 1:
+                input.checked = content.em;
+                break;
+              case 2:
+                input.checked = content.br;
+                break;
+              default:
+                break;
+            }
+            td.appendChild(input);
+            tr.appendChild(td);
+          }
+          tb.appendChild(tr);
+        }
+
+        //===========================
+        itemTable.appendChild(tb);
+
+        div.appendChild(titleData);
+        div.appendChild(itemTitle);
+        div.appendChild(cancelbtn);
+        div.appendChild(savebtn);
+        div.appendChild(itemTable);
+        div.classList.add("margin20");
+        popup.appendChild(div);
+      }
+
+      function openpopup() {
+        closepopup();
+        popup.classList.remove("none");
+      }
+      function closepopup() {
+        popup.classList.add("none");
+        popup.children[0]?.remove();
+        addbtn.textContent = "새 항목 추가";
+        addbtn.removeAttribute("disabled");
+      }
+
+      function editNewItem() {
+        // popup.classList.remove("none");
+        // addbtn.textContent = "새 항목 추가중...";
+        // addbtn.setAttribute("disabled", true);
+
+        const div = document.createElement("div");
+
+        const itemTitle = document.createElement("input");
+        itemTitle.setAttribute("id", "title");
+        itemTitle.setAttribute("type", "text");
+        itemTitle.setAttribute("placeholder", "제목 입력");
+
+        const cancelbtn = document.createElement("button");
+        cancelbtn.textContent = "작성 취소";
+        cancelbtn.addEventListener("click", () => {
+          closepopup();
+          // addbtn.textContent = "새 항목 추가";
+          // addbtn.removeAttribute("disabled");
+        });
+
+        const savebtn = document.createElement("button");
+        savebtn.textContent = "저장";
+        savebtn.addEventListener("click", () => {
+          saveItem();
+        });
+
+        const itemTable = document.createElement("table");
+        itemTable.setAttribute("id", "table");
+        itemTable.appendChild(createInitialTr());
+        const tb = document.createElement("tbody");
+        tb.appendChild(createTrSet());
+        itemTable.appendChild(tb);
+        // itemTable.appendChild(createTrSet());
+        // itemTable.appendChild(createTrSet(1));
+
+        // popup.appendChild(itemTitle);
+        // popup.appendChild(cancelbtn);
+        // popup.appendChild(itemTable);
+        div.appendChild(itemTitle);
+        div.appendChild(cancelbtn);
+        div.appendChild(savebtn);
+        div.appendChild(itemTable);
+        div.classList.add("margin20");
+        popup.appendChild(div);
+
+        // const newbtn = document.createElement("button");
+        // newbtn.textContent = "행 추가";
+        // newbtn.addEventListener("click", () => {
+        //   const table = document.querySelector("#table");
+        //   // table.appendChild(createTrSet(table.children.length));
+        //   table.appendChild(createTrSet());
+        // });
+        // popup.appendChild(newbtn);
+
+        // const delbtn = document.createElement("button");
+        // delbtn.textContent = "행 삭제";
+        // delbtn.addEventListener("click", () => {
+        //   const table = document.querySelector("#table");
+        //   if (table.children.length - 1) {
+        //     table.children[table.children.length - 1].remove();
+        //   }
+        //   //   table.remove(document.querySelector(`#tr${table.children.length - 1}`))
+        // });
+        // popup.appendChild(delbtn);
+      }
+      function createInitialTr() {
+        const tr = document.createElement("tr");
+        for (let j = 0; j < 4; j++) {
+          const td = document.createElement("td");
+          switch (j) {
+            case 0:
+              // td.textContent = "내용";
+              const newbtn = document.createElement("button");
+              newbtn.textContent = "행 추가";
+              newbtn.addEventListener("click", (event) => {
+                // const table = document.querySelector("#table");
+                // table.appendChild(createTrSet(table.children.length));
+                // table.appendChild(createTrSet());
+                event.target.parentNode.parentNode.parentNode.children[1].appendChild(
+                  createTrSet(),
+                );
+                // console.log(document.querySelector("#table"));
+              });
+              td.appendChild(newbtn);
+
+              const newspan = document.createElement("span");
+              newspan.textContent = "내용";
+              td.appendChild(newspan);
+
+              break;
+            case 1:
+              td.textContent = "수식";
+              break;
+            case 2:
+              td.textContent = "강조";
+              break;
+            case 3:
+              td.textContent = "줄바꿈";
+              break;
+            default:
+              break;
+          }
+          tr.appendChild(td);
+        }
+        return tr;
+      }
+      function createTrSet() {
+        // 원래 인자 i (초기값 0)를 받았었음 아래 주석 내용
+        // 나중에 table 에 접근 -> child length 를 인자에 넣기
+        const tr = document.createElement("tr");
+
+        // if (i == 0) {
+        //   tr.setAttribute("id", `tr0`);
+        // } else {
+        //   tr.setAttribute("id", `tr${i}`);
+        // }
+
+        // if (i == 0) {
+        //   for (let j = 0; j < 4; j++) {
+        //     const td = document.createElement("td");
+        //     switch (j) {
+        //       case 0:
+        //         td.textContent = "내용";
+
+        //         break;
+        //       case 1:
+        //         td.textContent = "문법 적용";
+
+        //         break;
+        //       case 2:
+        //         td.textContent = "강조";
+
+        //         break;
+        //       case 3:
+        //         td.textContent = "줄바꿈";
+
+        //         break;
+
+        //       default:
+        //         break;
+        //     }
+        //     tr.appendChild(td);
+        //   }
+        // } else {
+        const td = document.createElement("td");
+        const newbtn = document.createElement("button");
+        newbtn.textContent = "앞행 추가";
+        newbtn.addEventListener("click", (event) => {
+          // const table = document.querySelector("#table");
+          // table.appendChild(createTrSet(table.children.length));
+          event.target.parentNode.parentNode.parentNode.insertBefore(
+            createTrSet(),
+            event.target.parentNode.parentNode,
+          );
+        });
+        const input = document.createElement("input");
+
+        // input.setAttribute("id", `${i}-0`);
+        input.setAttribute("type", "text");
+        const swapbtn = document.createElement("button");
+        swapbtn.textContent = "위로 이동";
+        swapbtn.addEventListener("click", (event) => {
+          // const table = document.querySelector("#table");
+          // table.appendChild(createTrSet(table.children.length));
+          event.target.parentNode.parentNode.parentNode.insertBefore(
+            event.target.parentNode.parentNode,
+            event.target.parentNode.parentNode.previousElementSibling,
+          );
+        });
+        const delbtn = document.createElement("button");
+        delbtn.textContent = "행 삭제";
+        delbtn.addEventListener("click", (event) => {
+          event.target.parentNode.parentNode.remove();
+        });
+        td.appendChild(newbtn);
+        td.appendChild(input);
+        td.appendChild(swapbtn);
+        td.appendChild(delbtn);
+        tr.appendChild(td);
+        for (let j = 1; j < 4; j++) {
+          const td = document.createElement("td");
+          const input = document.createElement("input");
+
+          // input.setAttribute("id", `${i}-${j}`);
+          input.setAttribute("type", "checkbox");
+          td.appendChild(input);
+          tr.appendChild(td);
+        }
+        // }
+        return tr;
+      }
+
+      const list = document.querySelector("#list");
+      list.addEventListener("click", (event) => {
+        switch (topic) {
+          case "list":
+            viewItem(event.target.innerText);
+            break;
+          case "em":
+            if (event.target.tagName == "LI") {
+              viewItem(event.target.title);
+            } else {
+              viewItem(event.target.closest("li").title);
+              // console.log(event.target.parentNode);
+            }
+            // viewItem(event.target.title);
+            // console.log(event.target.parentNode);
+            break;
+          default:
+            break;
+        }
+      });
+
+      const addbtn = document.querySelector("#addbtn");
+      const chngbtn = document.querySelector("#chngbtn");
+      const popup = document.querySelector("#popupcontainer");
+      addbtn.addEventListener("click", () => {
+        addbtn.textContent = "새 항목 추가중...";
+        addbtn.setAttribute("disabled", true);
+        openpopup();
+        editNewItem();
+      });
+      chngbtn.addEventListener("click", () => {
+        switch (topic) {
+          case "list":
+            topic = "em";
+            chngbtn.textContent = "전체 보기";
+            loadData();
+            break;
+          case "em":
+            topic = "list";
+            chngbtn.textContent = "강조 보기";
+            loadData();
+            break;
+          default:
+            break;
+        }
+      });
+    </script>
+  </body>
+</html>
